@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -24,36 +25,44 @@ type gopkgTOMLDecl struct {
 	}
 }
 
-type excludes map[string]interface{}
+type excludeSet map[string]interface{}
 
-func (e *excludes) String() string {
-	return join(*e, ", ")
+func (e excludeSet) String() string {
+	return join(e, ", ")
 }
 
-func (e *excludes) Set(value string) error {
-	(*e)[value] = struct{}{}
+func (e excludeSet) Set(value string) error {
+	e[value] = struct{}{}
 	return nil
 }
 
 func main() {
-	excludeDirs := &excludes{}
-	excludeImports := &excludes{}
-
-	flag.Var(excludeDirs, "exclude", "Exclude a file/dir from being scrapped.")
-	flag.Var(excludeImports, "exclude-import", "Exclude an import from being included in the missing imports.")
-	flag.Parse()
-
 	var (
-		importPaths []string
-		gopkgTOML   gopkgTOMLDecl
+		gopkgTOML            gopkgTOMLDecl
+		importPaths          = make(map[string]interface{})
+		dir                  = "."
+		excludes             = excludeSet{}
+		excludeRegexps       = []*regexp.Regexp{}
+		excludeImports       = excludeSet{}
+		excludeImportRegexps = []*regexp.Regexp{}
 	)
 
+	flag.Var(&excludes, "exclude", "Exclude a file/dir from being scrapped.")
+	flag.Var(&excludeImports, "exclude-import", "Exclude an import from being included in the missing imports.")
+	flag.Parse()
+
+	for p := range excludes {
+		excludeRegexps = append(excludeRegexps, regexp.MustCompile(p))
+	}
+
+	for p := range excludeImports {
+		excludeImportRegexps = append(excludeImportRegexps, regexp.MustCompile(p))
+	}
+
 	fset := token.NewFileSet()
-	err := filepath.Walk(".", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
 		if !f.IsDir() {
-			if ok, err := any(excludeDirs, func(s string) (bool, error) { return filepath.Match(s, path) }); err != nil {
-				return err
-			} else if ok {
+			if mustExclude(excludeRegexps, path) {
 				return nil
 			}
 
@@ -69,8 +78,8 @@ func main() {
 						continue
 					}
 
-					if ok, _ := any(excludeImports, func(s string) (bool, error) { return strings.HasPrefix(importPath, s), nil }); ok {
-						continue
+					if mustExclude(excludeImportRegexps, importPath) {
+						return nil
 					}
 
 					parts := strings.Split(importPath, "/")
@@ -78,7 +87,7 @@ func main() {
 						return errors.New("unexpected import format")
 					}
 
-					importPaths = append(importPaths, strings.Join([]string{parts[0], parts[1], parts[2]}, "/"))
+					importPaths[strings.Join([]string{parts[0], parts[1], parts[2]}, "/")] = struct{}{}
 				}
 			}
 		}
@@ -89,7 +98,7 @@ func main() {
 		fatal("%v", err)
 	}
 
-	data, err := ioutil.ReadFile("Gopkg.toml")
+	data, err := ioutil.ReadFile(filepath.Join(dir, "Gopkg.toml"))
 	if err != nil {
 		fatal("%v", err)
 	}
@@ -104,7 +113,7 @@ func main() {
 	}
 
 	missingImportPaths := make(map[string]interface{})
-	for _, importPath := range importPaths {
+	for importPath := range importPaths {
 		if _, ok := depImportPaths[importPath]; !ok {
 			missingImportPaths[importPath] = struct{}{}
 		}
@@ -136,13 +145,11 @@ func join(set map[string]interface{}, sep string) string {
 	return b.String()
 }
 
-func any(e *excludes, predicate func(string) (bool, error)) (bool, error) {
-	for k := range *e {
-		if ok, err := predicate(k); err != nil {
-			return false, err
-		} else if ok {
-			return true, nil
+func mustExclude(excludes []*regexp.Regexp, s string) bool {
+	for _, er := range excludes {
+		if er.MatchString(s) {
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
