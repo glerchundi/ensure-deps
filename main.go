@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"go/parser"
@@ -84,7 +83,7 @@ func main() {
 
 					parts := strings.Split(importPath, "/")
 					if len(parts) < 3 {
-						return errors.New("unexpected import format")
+						return fmt.Errorf("unexpected import format: %s", importPath)
 					}
 
 					importPaths[strings.Join([]string{parts[0], parts[1], parts[2]}, "/")] = struct{}{}
