@@ -82,11 +82,12 @@ func main() {
 					}
 
 					parts := strings.Split(importPath, "/")
-					if len(parts) < 3 {
+					nparts := numParts(importPath)
+					if len(parts) < nparts {
 						return fmt.Errorf("unexpected import format: %s", importPath)
 					}
 
-					importPaths[strings.Join([]string{parts[0], parts[1], parts[2]}, "/")] = struct{}{}
+					importPaths[strings.Join(parts[:nparts], "/")] = struct{}{}
 				}
 			}
 		}
@@ -94,16 +95,16 @@ func main() {
 	})
 
 	if err != nil {
-		fatal("%v", err)
+		fatal("%v\n", err)
 	}
 
 	data, err := ioutil.ReadFile(filepath.Join(dir, "Gopkg.toml"))
 	if err != nil {
-		fatal("%v", err)
+		fatal("%v\n", err)
 	}
 
 	if err := toml.Unmarshal(data, &gopkgTOML); err != nil {
-		fatal("%v", err)
+		fatal("%v\n", err)
 	}
 
 	depImportPaths := make(map[string]interface{})
@@ -121,6 +122,20 @@ func main() {
 	if len(missingImportPaths) > 0 {
 		fatal("Missing import paths:\n%s\n", join(missingImportPaths, "\n"))
 	}
+}
+
+func numParts(importPath string) int {
+	idx := strings.Index(importPath, "/")
+	if idx == -1 {
+		return -1
+	}
+
+	switch importPath[:idx] {
+	case "google.golang.org":
+		return 2
+	}
+
+	return 3
 }
 
 func fatal(format string, a ...interface{}) {
