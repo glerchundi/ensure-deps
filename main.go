@@ -26,19 +26,7 @@ type gopkgTOMLDecl struct {
 type excludes map[string]interface{}
 
 func (e *excludes) String() string {
-	b := strings.Builder{}
-
-	i := 1
-	n := len(*e)
-	for k := range *e {
-		b.WriteString(k)
-		if i < n {
-			b.WriteRune(',')
-		}
-		i++
-	}
-
-	return b.String()
+	return join(*e, ", ")
 }
 
 func (e *excludes) Set(value string) error {
@@ -109,21 +97,37 @@ func main() {
 		depImportPaths[constraint.Name] = constraint
 	}
 
-	missingImportPaths := []string{}
+	missingImportPaths := make(map[string]interface{})
 	for _, importPath := range importPaths {
 		if _, ok := depImportPaths[importPath]; !ok {
-			missingImportPaths = append(missingImportPaths, importPath)
+			missingImportPaths[importPath] = struct{}{}
 		}
 	}
 
 	if len(missingImportPaths) > 0 {
-		fatal("Missing import paths:\n%s\n", strings.Join(missingImportPaths, "\n"))
+		fatal("Missing import paths:\n%s\n", join(missingImportPaths, "\n"))
 	}
 }
 
 func fatal(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, a...)
 	os.Exit(1)
+}
+
+func join(set map[string]interface{}, sep string) string {
+	b := strings.Builder{}
+
+	i := 1
+	n := len(set)
+	for k := range set {
+		b.WriteString(k)
+		if i < n {
+			b.WriteString(sep)
+		}
+		i++
+	}
+
+	return b.String()
 }
 
 func any(e *excludes, predicate func(string) (bool, error)) (bool, error) {
