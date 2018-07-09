@@ -131,7 +131,7 @@ func numParts(importPath string) int {
 	}
 
 	switch importPath[:idx] {
-	case "google.golang.org", "gopkg.in", "cloud.google.com":
+	case "google.golang.org", "gopkg.in", "cloud.google.com", "firebase.google.com":
 		return 2
 	case "go.opencensus.io":
 		return 1
