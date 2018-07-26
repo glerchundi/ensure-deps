@@ -78,7 +78,7 @@ func main() {
 					}
 
 					if mustExclude(excludeImportRegexps, importPath) {
-						return nil
+						continue
 					}
 
 					parts := strings.Split(importPath, "/")
