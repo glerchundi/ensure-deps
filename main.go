@@ -16,12 +16,15 @@ import (
 )
 
 type gopkgTOMLDecl struct {
-	Constraint []struct {
-		Branch   string
-		Name     string
-		Revision string
-		Version  string
-	}
+	Constraint []Stanza
+	Override   []Stanza
+}
+
+type Stanza struct {
+	Branch   string
+	Name     string
+	Revision string
+	Version  string
 }
 
 type excludeSet map[string]interface{}
@@ -110,6 +113,9 @@ func main() {
 	depImportPaths := make(map[string]interface{})
 	for _, constraint := range gopkgTOML.Constraint {
 		depImportPaths[constraint.Name] = constraint
+	}
+	for _, override := range gopkgTOML.Override {
+		depImportPaths[override.Name] = override
 	}
 
 	missingImportPaths := make(map[string]interface{})
