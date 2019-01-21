@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pelletier/go-toml"
+	toml "github.com/pelletier/go-toml"
 )
 
 type gopkgTOMLDecl struct {
@@ -139,7 +139,7 @@ func numParts(importPath string) int {
 	switch importPath[:idx] {
 	case "google.golang.org", "gopkg.in", "cloud.google.com", "firebase.google.com":
 		return 2
-	case "go.opencensus.io":
+	case "go.opencensus.io", "gocloud.dev":
 		return 1
 	}
 
